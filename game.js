@@ -1,53 +1,73 @@
 /* Spire Lite: no dependencies, no remote assets. Edit CARDS and ENEMIES to customize. */
 'use strict';
 const CARDS = {
- strike:{name:'Chém',cost:1,type:'attack',text:'Gây 6 sát thương.',damage:6},
- defend:{name:'Thủ',cost:1,type:'skill',text:'Nhận 5 giáp.',block:5},
- bash:{name:'Phá Giáp',cost:2,type:'attack',text:'Gây 8 sát thương. Đặt 2 Yếu Ớt.',damage:8,vulnerable:2},
- quick:{name:'Đột Kích',cost:0,type:'attack',text:'Gây 4 sát thương.',damage:4},
- brace:{name:'Tư Thế',cost:1,type:'skill',text:'Nhận 8 giáp.',block:8},
- focus:{name:'Tập Trung',cost:1,type:'skill',text:'Rút 2 lá.',draw:2},
- heavy:{name:'Trọng Kích',cost:2,type:'attack',text:'Gây 15 sát thương.',damage:15},
- heal:{name:'Hồi Sức',cost:1,type:'skill',text:'Hồi 5 HP trong trận.',heal:5},
- fury:{name:'Cuồng Nộ',cost:2,type:'power',text:'Nhận 2 Sức Mạnh vĩnh viễn trong trận.',strength:2},
- poison:{name:'Độc Châm',cost:1,type:'skill',text:'Đặt 4 Độc lên địch.',poison:4},
- weaken:{name:'Áp Chế',cost:1,type:'attack',text:'Gây 5 sát thương, đặt 2 Suy Yếu.',damage:5,weak:2},
- cleanse:{name:'Thanh Lọc',cost:1,type:'skill',text:'Nhận 4 giáp, xóa Suy Yếu và Dễ Tổn Thương.',block:4,cleanse:true}
+ strike:{name:'Strike',cost:1,type:'attack',text:'Deal 6 damage.',damage:6},
+ defend:{name:'Defend',cost:1,type:'skill',text:'Gain 5 Block.',block:5},
+ bash:{name:'Bash',cost:2,type:'attack',text:'Deal 8 damage. Apply 2 Vulnerable.',damage:8,vulnerable:2},
+ anger:{name:'Anger',cost:0,type:'attack',text:'Deal 6 damage. Add a copy to your discard pile.',damage:6,copyDiscard:true},
+ armaments:{name:'Armaments',cost:1,type:'skill',text:'Gain 5 Block. Upgrade a card in hand.',block:5,upgradeHand:true},
+ body_slam:{name:'Body Slam',cost:1,type:'attack',text:'Deal damage equal to your Block.',bodySlam:true},
+ iron_wave:{name:'Iron Wave',cost:1,type:'attack',text:'Gain 5 Block. Deal 5 damage.',damage:5,block:5},
+ pommel_strike:{name:'Pommel Strike',cost:1,type:'attack',text:'Deal 9 damage. Draw 1 card.',damage:9,draw:1},
+ shrug_it_off:{name:'Shrug It Off',cost:1,type:'skill',text:'Gain 8 Block. Draw 1 card.',block:8,draw:1},
+ twin_strike:{name:'Twin Strike',cost:1,type:'attack',text:'Deal 5 damage twice.',damage:5,hits:2},
+ thunderclap:{name:'Thunderclap',cost:1,type:'attack',text:'Deal 4 damage. Apply 1 Vulnerable to all enemies.',damage:4,vulnerable:1},
+ inflame:{name:'Inflame',cost:1,type:'power',text:'Gain 2 Strength.',strength:2}
 };
-// Upgrade IDs are stored as "cardId+"; old string deck saves stay valid.
-const RARITY={strike:'starter',defend:'starter',bash:'starter',quick:'common',brace:'common',focus:'common',heavy:'uncommon',heal:'uncommon',fury:'rare',poison:'common',weaken:'uncommon',cleanse:'uncommon'};
+const RARITY={
+ strike:'starter',defend:'starter',bash:'starter',
+ anger:'common',armaments:'common',body_slam:'common',iron_wave:'common',
+ pommel_strike:'common',shrug_it_off:'common',twin_strike:'common',thunderclap:'common',
+ inflame:'uncommon'
+};
 const UPGRADES={
  strike:{damage:9},defend:{block:8},bash:{damage:10,vulnerable:3},
- quick:{damage:7},brace:{block:12},focus:{draw:3},heavy:{damage:21},
- heal:{heal:8},fury:{strength:3},poison:{poison:6},
- weaken:{damage:8,weak:3},cleanse:{block:8}
+ anger:{damage:8},armaments:{block:5,upgradeAllHand:true},
+ body_slam:{cost:0},iron_wave:{damage:7,block:7},
+ pommel_strike:{damage:10,draw:2},shrug_it_off:{block:11},
+ twin_strike:{damage:7},thunderclap:{damage:7},inflame:{strength:3}
+};
+// Legacy-only card definitions keep older Step 2/3 saves playable; never enter Ironclad rewards.
+const LEGACY_CARDS={
+ quick:{name:'Đột Kích (cũ)',cost:0,type:'attack',text:'Gây 4 sát thương.',damage:4},
+ brace:{name:'Tư Thế (cũ)',cost:1,type:'skill',text:'Nhận 8 giáp.',block:8},
+ focus:{name:'Tập Trung (cũ)',cost:1,type:'skill',text:'Rút 2 lá.',draw:2},
+ heavy:{name:'Trọng Kích (cũ)',cost:2,type:'attack',text:'Gây 15 sát thương.',damage:15},
+ heal:{name:'Hồi Sức (cũ)',cost:1,type:'skill',text:'Hồi 5 HP.',heal:5},
+ fury:{name:'Cuồng Nộ (cũ)',cost:2,type:'power',text:'Nhận 2 Sức Mạnh.',strength:2},
+ poison:{name:'Độc Châm (cũ)',cost:1,type:'skill',text:'Đặt 4 Độc.',poison:4},
+ weaken:{name:'Áp Chế (cũ)',cost:1,type:'attack',text:'Gây 5 sát thương và 2 Suy Yếu.',damage:5,weak:2},
+ cleanse:{name:'Thanh Lọc (cũ)',cost:1,type:'skill',text:'Nhận 4 giáp và thanh lọc.',block:4,cleanse:true}
 };
 function cardBase(id){return typeof id==='string'?id.replace(/\+$/,''):''}
 function cardInfo(id){
- const base=cardBase(id),original=CARDS[base];if(!original)return null;
+ const base=cardBase(id),original=CARDS[base]||LEGACY_CARDS[base];if(!original)return null;
  const upgraded=id.endsWith('+'),c={...original,...(upgraded?UPGRADES[base]:{})};
- c.rarity=RARITY[base]||'common';
- c.name=original.name+(upgraded?' +':'');
+ c.rarity=RARITY[base]||'legacy';c.name=original.name+(upgraded?' +':'');
  if(upgraded){
-  c.text=[c.damage&&`Gây ${c.damage} sát thương`,c.block&&`Nhận ${c.block} giáp`,c.vulnerable&&`Đặt ${c.vulnerable} Dễ Tổn Thương`,c.weak&&`Đặt ${c.weak} Suy Yếu`,c.poison&&`Đặt ${c.poison} Độc`,c.heal&&`Hồi ${c.heal} HP`,c.strength&&`Nhận ${c.strength} Sức Mạnh`,c.draw&&`Rút ${c.draw} lá`,c.cleanse&&'Thanh lọc'].filter(Boolean).join(' · ')+'.';
+  const desc=[c.bodySlam&&'Deal damage equal to your Block',
+   c.damage&&`Deal ${c.damage} damage${c.hits?` ${c.hits} times`:''}`,
+   c.block&&`Gain ${c.block} Block`,c.vulnerable&&`Apply ${c.vulnerable} Vulnerable`,
+   c.weak&&`Apply ${c.weak} Weak`,c.poison&&`Apply ${c.poison} Poison`,
+   c.heal&&`Heal ${c.heal} HP`,c.strength&&`Gain ${c.strength} Strength`,
+   c.draw&&`Draw ${c.draw}`,c.copyDiscard&&'Copy to discard',
+   c.upgradeAllHand?'Upgrade all cards in hand':c.upgradeHand&&'Upgrade a card in hand',
+   c.cleanse&&'Cleanse'].filter(Boolean);
+  if(desc.length)c.text=desc.join('. ')+'.';
  }
  return c;
 }
 function rollOffers(count=3){
- const pool=Object.keys(CARDS).filter(x=>!['strike','defend','bash'].includes(x));
+ const pool=Object.keys(RARITY).filter(x=>RARITY[x]!=='starter');
  const weighted=pool.flatMap(x=>Array(RARITY[x]==='rare'?1:RARITY[x]==='uncommon'?3:6).fill(x));
  const offers=[];
- while(offers.length<count&&offers.length<pool.length){
-  const id=weighted[Math.floor(Math.random()*weighted.length)];
-  if(!offers.includes(id))offers.push(id);
- }
+ while(offers.length<count&&offers.length<pool.length){const id=weighted[Math.floor(Math.random()*weighted.length)];if(!offers.includes(id))offers.push(id)}
  return offers;
 }
 function openDeck(){const box=$('deckview');if(!box)return;box.classList.toggle('hidden');renderDeck()}
 function renderDeck(){
  const box=$('deckview');if(!box||box.classList.contains('hidden')||!state)return;
- box.replaceChildren();
- const h=document.createElement('h2');h.textContent='Bộ bài hiện tại';box.append(h);
+ box.replaceChildren();const h=document.createElement('h2');h.textContent='Ironclad — Deck';box.append(h);
  const list=document.createElement('div');list.className='deck-list';
  state.deck.forEach((id,i)=>{const c=cardInfo(id);if(!c)return;const d=document.createElement('div');d.className='deck-entry rarity-'+c.rarity;d.textContent=`${i+1}. ${c.name} · ${c.cost}⚡ · ${c.rarity} — ${c.text}`;list.append(d)});
  box.append(list);
@@ -55,8 +75,9 @@ function renderDeck(){
 function chooseUpgrade(index){
  if(state.scene!=='upgrade'||!Number.isInteger(index)||index<0||index>=state.deck.length)return;
  const id=state.deck[index];if(!cardInfo(id)||id.endsWith('+'))return;
- state.deck[index]=id+'+';state.log=`Đã nâng cấp ${cardInfo(id).name}.`;advance();
+ state.deck[index]=id+'+';state.log=`Upgraded ${cardInfo(id).name}.`;advance();
 }
+
 const ENEMIES = {
  slime:{name:'Thạch Nhỏ',icon:'◉',hp:30,damage:6},
  scout:{name:'Kẻ Trinh Sát',icon:'♞',hp:35,damage:7},
@@ -158,7 +179,19 @@ function startTurn(){
 }
 function hurtEnemy(amount){const e=state.battle.enemy;const b=state.battle;const modified=Math.max(0,Math.floor(Math.max(0,amount)*(b.weak>0?.75:1)*(e.vulnerable>0?1.5:1)));const blocked=Math.min(e.block,modified);e.block-=blocked;e.hp=Math.max(0,e.hp-(modified-blocked));return modified-blocked}
 function playerDamage(amount){const b=state.battle;amount=Math.max(0,Math.floor(amount*(b.vulnerable>0?1.5:1)));const absorbed=Math.min(b.block,amount);b.block-=absorbed;state.hp=Math.max(0,state.hp-(amount-absorbed));return amount-absorbed}
-function playCard(index){if(state.scene!=='combat')return;const b=state.battle;const id=b.hand[index];if(!id)return;const c=cardInfo(id);if(!c||b.energy<c.cost)return;b.energy-=c.cost;b.hand.splice(index,1);b.discard.push(id);const notes=[];if(c.damage)notes.push(`gây ${hurtEnemy(c.damage+b.strength)} sát thương`);if(c.block){b.block+=c.block;notes.push(`+${c.block} giáp`)}if(c.vulnerable){b.enemy.vulnerable+=c.vulnerable;notes.push(`+${c.vulnerable} Dễ Tổn Thương`)}if(c.weak){b.enemy.weak+=c.weak;notes.push(`+${c.weak} Suy Yếu`)}if(c.poison){b.enemy.poison+=c.poison;notes.push(`+${c.poison} Độc`)}if(c.cleanse){b.weak=0;b.vulnerable=0;notes.push('thanh lọc hiệu ứng')}if(c.heal){const before=state.hp;state.hp=Math.min(state.maxHp,state.hp+c.heal);notes.push(`hồi ${state.hp-before} HP`)}if(c.strength){b.strength+=c.strength;notes.push(`+${c.strength} sức mạnh`)}if(c.draw){drawCards(c.draw);notes.push(`rút ${c.draw} lá`)}state.log=`${c.name}: ${notes.join(', ')}.`;if(b.enemy.hp===0){winBattle();return}save();render()}
+function playCard(index){if(state.scene!=='combat')return;const b=state.battle;const id=b.hand[index];if(!id)return;const c=cardInfo(id);if(!c||b.energy<c.cost)return;b.energy-=c.cost;b.hand.splice(index,1);if(c.type==='power')b.exhaust=(b.exhaust||[]).concat(id);else b.discard.push(id);const notes=[];if(c.damage||c.bodySlam){
+ const hits=c.hits||1;let total=0;
+ for(let n=0;n<hits;n++){if(b.enemy.hp===0)break;total+=hurtEnemy((c.bodySlam?b.block:c.damage)+b.strength)}
+ notes.push(`gây ${total} sát thương (${hits} hit)`);
+}if(c.block){b.block+=c.block;notes.push(`+${c.block} giáp`)}if(c.vulnerable){b.enemy.vulnerable+=c.vulnerable;notes.push(`+${c.vulnerable} Dễ Tổn Thương`)}if(c.weak){b.enemy.weak+=c.weak;notes.push(`+${c.weak} Suy Yếu`)}if(c.poison){b.enemy.poison+=c.poison;notes.push(`+${c.poison} Độc`)}if(c.cleanse){b.weak=0;b.vulnerable=0;notes.push('thanh lọc hiệu ứng')}if(c.heal){const before=state.hp;state.hp=Math.min(state.maxHp,state.hp+c.heal);notes.push(`hồi ${state.hp-before} HP`)}if(c.strength){b.strength+=c.strength;notes.push(`+${c.strength} sức mạnh`)}if(c.draw){drawCards(c.draw);notes.push(`rút ${c.draw} lá`)}
+ if(c.copyDiscard){b.discard.push(id);notes.push('sao chép vào chồng bỏ')}
+ if(c.upgradeHand||c.upgradeAllHand){
+  const eligible=b.hand.map((entry,i)=>({entry,i})).filter(x=>!x.entry.endsWith('+')&&CARDS[cardBase(x.entry)]);
+  const chosen=c.upgradeAllHand?eligible:eligible.slice(0,1);
+  for(const x of chosen)b.hand[x.i]=x.entry+'+';
+  if(chosen.length)notes.push(`nâng cấp ${chosen.length} bài trên tay`);
+ }
+ state.log=`${c.name}: ${notes.join(', ')}.`;if(b.enemy.hp===0){winBattle();return}save();render()}
 function endTurn(){
  if(state.scene!=='combat')return;
  const b=state.battle,e=b.enemy,action=b.intent||enemyIntent(b);
