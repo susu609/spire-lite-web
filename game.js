@@ -9,7 +9,10 @@ const CARDS = {
  focus:{name:'Tập Trung',cost:1,type:'skill',text:'Rút 2 lá.',draw:2},
  heavy:{name:'Trọng Kích',cost:2,type:'attack',text:'Gây 15 sát thương.',damage:15},
  heal:{name:'Hồi Sức',cost:1,type:'skill',text:'Hồi 5 HP trong trận.',heal:5},
- fury:{name:'Cuồng Nộ',cost:2,type:'power',text:'Nhận 2 Sức Mạnh vĩnh viễn trong trận.',strength:2}
+ fury:{name:'Cuồng Nộ',cost:2,type:'power',text:'Nhận 2 Sức Mạnh vĩnh viễn trong trận.',strength:2},
+ poison:{name:'Độc Châm',cost:1,type:'skill',text:'Đặt 4 Độc lên địch.',poison:4},
+ weaken:{name:'Áp Chế',cost:1,type:'attack',text:'Gây 5 sát thương, đặt 2 Suy Yếu.',damage:5,weak:2},
+ cleanse:{name:'Thanh Lọc',cost:1,type:'skill',text:'Nhận 4 giáp, xóa Suy Yếu và Dễ Tổn Thương.',block:4,cleanse:true}
 };
 const ENEMIES = {
  slime:{name:'Thạch Nhỏ',icon:'◉',hp:30,damage:6},
@@ -55,7 +58,7 @@ function save(){try{localStorage.setItem(STORAGE,JSON.stringify(state))}catch(e)
 function validMap(s){return Array.isArray(s.mapRows)&&s.mapRows.length===5&&s.mapRows.every((row,i)=>Array.isArray(row)&&row.length===(i===4?1:3)&&row.every(n=>n.floor===i+1&&typeof n.id==='string'&&Array.isArray(n.next)))}
 function load(){try{
  const s=JSON.parse(localStorage.getItem(STORAGE));
- if(s&&s.version===2&&validMap(s)&&Array.isArray(s.deck)&&s.hp>=0&&s.floor>=1&&s.floor<=5&&['map','combat','rewards','win','lose'].includes(s.scene)){state=s;return}
+ if(s&&s.version===2&&validMap(s)&&Array.isArray(s.deck)&&s.hp>=0&&s.floor>=1&&s.floor<=5&&['map','combat','rewards','win','lose'].includes(s.scene)){state=s;if(state.scene==='combat')normalizeBattle(state.battle);return}
  // Chuyển bản lưu cũ sang bản đồ mới, giữ HP, vàng, bộ bài và trận đang diễn ra.
  const old=JSON.parse(localStorage.getItem(LEGACY_STORAGE));
  if(old&&old.version===1&&Array.isArray(old.deck)&&old.floor>=1&&old.floor<=5&&old.hp>=0){
@@ -77,18 +80,70 @@ function chooseNode(id){
  state.currentNode=node.id;state.visited.push(id);
  enterRoom(node.kind);
 }
-function enemyIntent(b){const n=b.turn;return n%3===2?{name:'Thủ thế',block:8,damage:0}:{name:'Tấn công',block:0,damage:b.enemy.damage+(n>=4?2:0)}}
-function enterRoom(kind){if(state.scene!=='map')return;if(kind==='rest'){state.hp=Math.min(state.maxHp,state.hp+18);state.log='Bạn nghỉ chân và hồi 18 HP.';advance();return}if(kind==='treasure'){state.gold+=25;state.log='Nhặt được 25 vàng.';advance();return}const type=state.floor===5?'boss':kind==='elite'?'guardian':state.floor%2?'slime':'scout';const def=ENEMIES[type];const hp=def.hp+(type==='boss'?0:(state.floor-1)*5);state.battle={enemy:{...clone(def),hp,maxHp:hp,block:0,vulnerable:0},turn:1,energy:3,block:0,strength:0,weak:0,draw:shuffle([...state.deck]),discard:[],hand:[],intent:null};state.scene='combat';state.log=`${def.name} xuất hiện.`;startTurn();}
+// Intents are chosen at the start of the player's turn, never rerolled during card play.
+function enemyIntent(b){
+ const n=b.turn,e=b.enemy,base=e.damage+(n>=4?2:0);
+ if(n%5===0)return {name:'Đe dọa',kind:'debuff',damage:0,block:0,weak:2};
+ if(n%4===0)return {name:'Dồn sức',kind:'buff',damage:0,block:0,strength:2};
+ if(n%3===2)return {name:'Thủ thế',kind:'defend',block:8,damage:0};
+ return {name:'Tấn công',kind:'attack',block:0,damage:base};
+}
+function normalizeBattle(b){
+ if(!b||!b.enemy)return;
+ for(const key of ['strength','weak','vulnerable'])if(!Number.isFinite(b[key]))b[key]=0;
+ for(const key of ['strength','weak','vulnerable','poison'])if(!Number.isFinite(b.enemy[key]))b.enemy[key]=0;
+ if(!b.intent)b.intent=enemyIntent(b);
+}
+function tickPoison(target){
+ const p=Math.max(0,target.poison||0);
+ if(!p)return 0;
+ // Poison bypasses block and loses one stack each turn.
+ const before=target.hp;
+ target.hp=Math.max(0,target.hp-p);
+ target.poison=p-1;
+ return before-target.hp;
+}
+function enterRoom(kind){if(state.scene!=='map')return;if(kind==='rest'){state.hp=Math.min(state.maxHp,state.hp+18);state.log='Bạn nghỉ chân và hồi 18 HP.';advance();return}if(kind==='treasure'){state.gold+=25;state.log='Nhặt được 25 vàng.';advance();return}const type=state.floor===5?'boss':kind==='elite'?'guardian':state.floor%2?'slime':'scout';const def=ENEMIES[type];const hp=def.hp+(type==='boss'?0:(state.floor-1)*5);state.battle={enemy:{...clone(def),hp,maxHp:hp,block:0,vulnerable:0,weak:0,poison:0,strength:0},turn:1,energy:3,block:0,strength:0,weak:0,vulnerable:0,draw:shuffle([...state.deck]),discard:[],hand:[],intent:null};state.scene='combat';state.log=`${def.name} xuất hiện.`;startTurn();}
 function drawCards(amount){const b=state.battle;for(let i=0;i<amount;i++){if(!b.draw.length){if(!b.discard.length)break;b.draw=shuffle(b.discard.splice(0))}b.hand.push(b.draw.pop())}}
-function startTurn(){const b=state.battle;b.energy=3;b.block=0;b.intent=enemyIntent(b);drawCards(5);save();render()}
-function hurtEnemy(amount){const e=state.battle.enemy;const modified=Math.max(0,Math.floor(amount*(e.vulnerable>0?1.5:1)));const blocked=Math.min(e.block,modified);e.block-=blocked;e.hp=Math.max(0,e.hp-(modified-blocked));return modified-blocked}
-function playerDamage(amount){const b=state.battle;const absorbed=Math.min(b.block,amount);b.block-=absorbed;state.hp=Math.max(0,state.hp-(amount-absorbed));return amount-absorbed}
-function playCard(index){if(state.scene!=='combat')return;const b=state.battle;const id=b.hand[index];if(!id)return;const c=CARDS[id];if(!c||b.energy<c.cost)return;b.energy-=c.cost;b.hand.splice(index,1);b.discard.push(id);const notes=[];if(c.damage)notes.push(`gây ${hurtEnemy(c.damage+b.strength)} sát thương`);if(c.block){b.block+=c.block;notes.push(`+${c.block} giáp`)}if(c.vulnerable){b.enemy.vulnerable+=c.vulnerable;notes.push(`+${c.vulnerable} Yếu Ớt`)}if(c.heal){const before=state.hp;state.hp=Math.min(state.maxHp,state.hp+c.heal);notes.push(`hồi ${state.hp-before} HP`)}if(c.strength){b.strength+=c.strength;notes.push(`+${c.strength} sức mạnh`)}if(c.draw){drawCards(c.draw);notes.push(`rút ${c.draw} lá`)}state.log=`${c.name}: ${notes.join(', ')}.`;if(b.enemy.hp===0){winBattle();return}save();render()}
-function endTurn(){if(state.scene!=='combat')return;const b=state.battle;b.discard.push(...b.hand.splice(0));const action=b.intent;b.enemy.block=0;if(action.block){b.enemy.block+=action.block;state.log=`Địch nhận ${action.block} giáp.`}else{const taken=playerDamage(action.damage);state.log=`Địch tấn công ${action.damage}, bạn mất ${taken} HP.`}if(state.hp===0){state.scene='lose';save();render();return}if(b.enemy.vulnerable>0)b.enemy.vulnerable--;b.turn++;startTurn()}
+function startTurn(){
+ const b=state.battle;normalizeBattle(b);
+ b.energy=3;b.block=0;b.intent=enemyIntent(b);
+ const poisonDamage=tickPoison(b.enemy);
+ if(poisonDamage)state.log=`Độc gây ${poisonDamage} sát thương lên địch.`;
+ if(b.enemy.hp<=0){winBattle();return}
+ drawCards(5);save();render();
+}
+function hurtEnemy(amount){const e=state.battle.enemy;const b=state.battle;const modified=Math.max(0,Math.floor(Math.max(0,amount)*(b.weak>0?.75:1)*(e.vulnerable>0?1.5:1)));const blocked=Math.min(e.block,modified);e.block-=blocked;e.hp=Math.max(0,e.hp-(modified-blocked));return modified-blocked}
+function playerDamage(amount){const b=state.battle;amount=Math.max(0,Math.floor(amount*(b.vulnerable>0?1.5:1)));const absorbed=Math.min(b.block,amount);b.block-=absorbed;state.hp=Math.max(0,state.hp-(amount-absorbed));return amount-absorbed}
+function playCard(index){if(state.scene!=='combat')return;const b=state.battle;const id=b.hand[index];if(!id)return;const c=CARDS[id];if(!c||b.energy<c.cost)return;b.energy-=c.cost;b.hand.splice(index,1);b.discard.push(id);const notes=[];if(c.damage)notes.push(`gây ${hurtEnemy(c.damage+b.strength)} sát thương`);if(c.block){b.block+=c.block;notes.push(`+${c.block} giáp`)}if(c.vulnerable){b.enemy.vulnerable+=c.vulnerable;notes.push(`+${c.vulnerable} Dễ Tổn Thương`)}if(c.weak){b.enemy.weak+=c.weak;notes.push(`+${c.weak} Suy Yếu`)}if(c.poison){b.enemy.poison+=c.poison;notes.push(`+${c.poison} Độc`)}if(c.cleanse){b.weak=0;b.vulnerable=0;notes.push('thanh lọc hiệu ứng')}if(c.heal){const before=state.hp;state.hp=Math.min(state.maxHp,state.hp+c.heal);notes.push(`hồi ${state.hp-before} HP`)}if(c.strength){b.strength+=c.strength;notes.push(`+${c.strength} sức mạnh`)}if(c.draw){drawCards(c.draw);notes.push(`rút ${c.draw} lá`)}state.log=`${c.name}: ${notes.join(', ')}.`;if(b.enemy.hp===0){winBattle();return}save();render()}
+function endTurn(){
+ if(state.scene!=='combat')return;
+ const b=state.battle,e=b.enemy,action=b.intent||enemyIntent(b);
+ b.discard.push(...b.hand.splice(0));
+ // Statuses applied during the player's turn remain active until this action completes.
+ const enemyWeak=e.weak>0,playerWeak=b.weak>0,enemyVulnerable=e.vulnerable>0,playerVulnerable=b.vulnerable>0;
+ e.block=0;
+ if(action.kind==='defend'||action.block){
+  e.block+=action.block;state.log=`Địch nhận ${action.block} giáp.`;
+ }else if(action.kind==='buff'){
+  e.strength+=(action.strength||0);state.log=`Địch nhận ${action.strength} Sức Mạnh.`;
+ }else if(action.kind==='debuff'){
+  b.weak+=(action.weak||0);state.log=`Bạn nhận ${action.weak} Suy Yếu.`;
+ }else{
+  const raw=Math.max(0,(action.damage||0)+(e.strength||0));
+  const effective=Math.floor(raw*(enemyWeak?.75:1));
+  const taken=playerDamage(effective);
+  state.log=`Địch tấn công ${effective}, bạn mất ${taken} HP.`;
+ }
+ if(enemyWeak)e.weak--;if(enemyVulnerable)e.vulnerable--;
+ if(playerWeak)b.weak--;if(playerVulnerable)b.vulnerable--;
+ if(state.hp===0){state.scene='lose';save();render();return}
+ b.turn++;startTurn();
+}
 function winBattle(){const boss=state.floor===5;state.battle=null;if(boss){state.scene='win';state.log='Bạn đã đánh bại kẻ canh tháp!';save();render();return}state.gold+=15;state.scene='rewards';state.offers=shuffle(Object.keys(CARDS).filter(x=>!['strike','defend'].includes(x))).slice(0,3);state.log='Chiến thắng! +15 vàng. Chọn một lá hoặc bỏ qua.';save();render()}
 function pickReward(id){if(state.scene!=='rewards')return;if(id&&state.offers.includes(id))state.deck.push(id);delete state.offers;advance()}
 function advance(){state.floor++;state.scene=state.floor>5?'win':'map';save();render()}
-function pct(a,b){return Math.round((a/b)*100)}
+function pct(a,b){return b>0?Math.max(0,Math.min(100,Math.round((a/b)*100))):0}
 function hpBar(a,b){return `<div class="hpbar"><div style="width:${pct(a,b)}%"></div></div>`}
 function btn(label,handler,cls=''){const button=document.createElement('button');button.textContent=label;button.className=cls;button.addEventListener('click',handler);return button}
 function drawMapLines(graph,svg){
@@ -135,7 +190,7 @@ if(state.scene==='map'){
  // Kẻ đường nối bằng SVG tĩnh, không dùng canvas hay vòng lặp animation.
  requestAnimationFrame(()=>drawMapLines(graph,wires));
 }
-if(state.scene==='combat'){const b=state.battle;if(!b){state.scene='map';save();render();return}$('combat').classList.remove('hidden');const e=b.enemy;$('enemy').innerHTML=`<div class="portrait">${e.icon}</div><div class="enemy-title">${e.name}</div>${hpBar(e.hp,e.maxHp)}<div>♥ ${e.hp}/${e.maxHp} <span class="block">▣ ${e.block}</span></div><div class="intent">Ý định: ${b.intent.block?`+${b.intent.block} giáp`:`⚔ ${b.intent.damage} sát thương`}</div><small>Yếu Ớt: ${e.vulnerable}</small>`;$('hero').innerHTML=`<div class="portrait">♟</div><div class="enemy-title">Lữ khách</div>${hpBar(state.hp,state.maxHp)}<div>♥ ${state.hp}/${state.maxHp} <span class="block">▣ ${b.block}</span></div><div>⚡ Năng lượng: ${b.energy}/3</div><small>Sức mạnh: ${b.strength} · Lượt ${b.turn}</small>`;$('deckinfo').textContent=`Rút: ${b.draw.length} | Bỏ: ${b.discard.length} | Tay: ${b.hand.length}`;const hand=$('hand');hand.replaceChildren();b.hand.forEach((id,i)=>{const c=CARDS[id];const el=btn('',()=>playCard(i),`card ${c.type}`);el.disabled=b.energy<c.cost;el.innerHTML=`<span class="cost">${c.cost}</span><b>${c.name}</b><span class="desc">${c.text}</span><span class="type">${c.type.toUpperCase()}</span>`;hand.append(el)})}
+if(state.scene==='combat'){const b=state.battle;if(!b){state.scene='map';save();render();return}$('combat').classList.remove('hidden');const e=b.enemy;$('enemy').innerHTML=`<div class="portrait">${e.icon}</div><div class="enemy-title">${e.name}</div>${hpBar(e.hp,e.maxHp)}<div>♥ ${e.hp}/${e.maxHp} <span class="block">▣ ${e.block}</span></div><div class="intent">Ý định: ${b.intent.kind==='buff'?`+${b.intent.strength} Sức Mạnh`:b.intent.kind==='debuff'?`+${b.intent.weak} Suy Yếu`:b.intent.block?`+${b.intent.block} giáp`:`⚔ ${b.intent.damage+(e.strength||0)} sát thương`}</div><small>Địch: Dễ Tổn Thương ${e.vulnerable||0} · Suy Yếu ${e.weak||0} · Độc ${e.poison||0} · Sức Mạnh ${e.strength||0}</small>`;$('hero').innerHTML=`<div class="portrait">♟</div><div class="enemy-title">Lữ khách</div>${hpBar(state.hp,state.maxHp)}<div>♥ ${state.hp}/${state.maxHp} <span class="block">▣ ${b.block}</span></div><div>⚡ Năng lượng: ${b.energy}/3</div><small>Sức mạnh: ${b.strength} · Suy Yếu: ${b.weak||0} · Dễ Tổn Thương: ${b.vulnerable||0} · Lượt ${b.turn}</small>`;$('deckinfo').textContent=`Rút: ${b.draw.length} | Bỏ: ${b.discard.length} | Tay: ${b.hand.length}`;const hand=$('hand');hand.replaceChildren();b.hand.forEach((id,i)=>{const c=CARDS[id];const el=btn('',()=>playCard(i),`card ${c.type}`);el.disabled=b.energy<c.cost;el.innerHTML=`<span class="cost">${c.cost}</span><b>${c.name}</b><span class="desc">${c.text}</span><span class="type">${c.type.toUpperCase()}</span>`;hand.append(el)})}
 if(state.scene==='rewards'){const box=$('rewards');box.classList.remove('hidden');box.replaceChildren();const h=document.createElement('h2');h.textContent='Chiến thắng — chọn phần thưởng';box.append(h);const choices=document.createElement('div');choices.className='choices';(state.offers||[]).forEach(id=>{const c=CARDS[id];choices.append(btn(`${c.name} (${c.cost}⚡) — ${c.text}`,()=>pickReward(id)))});choices.append(btn('Bỏ qua →',()=>pickReward(null)));box.append(choices)}
 if(state.scene==='win'||state.scene==='lose'){const box=$('result');box.classList.remove('hidden');box.replaceChildren();const h=document.createElement('h2');h.textContent=state.scene==='win'?'CHIẾN THẮNG!':'THẤT BẠI';const p=document.createElement('p');p.textContent=`Kết thúc ở tầng ${state.floor}. Bộ bài: ${state.deck.length} lá.`;box.append(h,p,btn('Bắt đầu hành trình mới',newGame,'primary'))}}
 $('endturn').addEventListener('click',endTurn);$('restart').addEventListener('click',()=>{if(confirm('Xóa lượt chơi đang lưu và bắt đầu lại?'))newGame()});$('graphics').addEventListener('click',()=>{state.graphics=state.graphics==='ultra'?'normal':'ultra';save();render()});load();render();
