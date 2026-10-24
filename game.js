@@ -14,6 +14,49 @@ const CARDS = {
  weaken:{name:'Áp Chế',cost:1,type:'attack',text:'Gây 5 sát thương, đặt 2 Suy Yếu.',damage:5,weak:2},
  cleanse:{name:'Thanh Lọc',cost:1,type:'skill',text:'Nhận 4 giáp, xóa Suy Yếu và Dễ Tổn Thương.',block:4,cleanse:true}
 };
+// Upgrade IDs are stored as "cardId+"; old string deck saves stay valid.
+const RARITY={strike:'starter',defend:'starter',bash:'starter',quick:'common',brace:'common',focus:'common',heavy:'uncommon',heal:'uncommon',fury:'rare',poison:'common',weaken:'uncommon',cleanse:'uncommon'};
+const UPGRADES={
+ strike:{damage:9},defend:{block:8},bash:{damage:10,vulnerable:3},
+ quick:{damage:7},brace:{block:12},focus:{draw:3},heavy:{damage:21},
+ heal:{heal:8},fury:{strength:3},poison:{poison:6},
+ weaken:{damage:8,weak:3},cleanse:{block:8}
+};
+function cardBase(id){return typeof id==='string'?id.replace(/\+$/,''):''}
+function cardInfo(id){
+ const base=cardBase(id),original=CARDS[base];if(!original)return null;
+ const upgraded=id.endsWith('+'),c={...original,...(upgraded?UPGRADES[base]:{})};
+ c.rarity=RARITY[base]||'common';
+ c.name=original.name+(upgraded?' +':'');
+ if(upgraded){
+  c.text=[c.damage&&`Gây ${c.damage} sát thương`,c.block&&`Nhận ${c.block} giáp`,c.vulnerable&&`Đặt ${c.vulnerable} Dễ Tổn Thương`,c.weak&&`Đặt ${c.weak} Suy Yếu`,c.poison&&`Đặt ${c.poison} Độc`,c.heal&&`Hồi ${c.heal} HP`,c.strength&&`Nhận ${c.strength} Sức Mạnh`,c.draw&&`Rút ${c.draw} lá`,c.cleanse&&'Thanh lọc'].filter(Boolean).join(' · ')+'.';
+ }
+ return c;
+}
+function rollOffers(count=3){
+ const pool=Object.keys(CARDS).filter(x=>!['strike','defend','bash'].includes(x));
+ const weighted=pool.flatMap(x=>Array(RARITY[x]==='rare'?1:RARITY[x]==='uncommon'?3:6).fill(x));
+ const offers=[];
+ while(offers.length<count&&offers.length<pool.length){
+  const id=weighted[Math.floor(Math.random()*weighted.length)];
+  if(!offers.includes(id))offers.push(id);
+ }
+ return offers;
+}
+function openDeck(){const box=$('deckview');if(!box)return;box.classList.toggle('hidden');renderDeck()}
+function renderDeck(){
+ const box=$('deckview');if(!box||box.classList.contains('hidden')||!state)return;
+ box.replaceChildren();
+ const h=document.createElement('h2');h.textContent='Bộ bài hiện tại';box.append(h);
+ const list=document.createElement('div');list.className='deck-list';
+ state.deck.forEach((id,i)=>{const c=cardInfo(id);if(!c)return;const d=document.createElement('div');d.className='deck-entry rarity-'+c.rarity;d.textContent=`${i+1}. ${c.name} · ${c.cost}⚡ · ${c.rarity} — ${c.text}`;list.append(d)});
+ box.append(list);
+}
+function chooseUpgrade(index){
+ if(state.scene!=='upgrade'||!Number.isInteger(index)||index<0||index>=state.deck.length)return;
+ const id=state.deck[index];if(!cardInfo(id)||id.endsWith('+'))return;
+ state.deck[index]=id+'+';state.log=`Đã nâng cấp ${cardInfo(id).name}.`;advance();
+}
 const ENEMIES = {
  slime:{name:'Thạch Nhỏ',icon:'◉',hp:30,damage:6},
  scout:{name:'Kẻ Trinh Sát',icon:'♞',hp:35,damage:7},
@@ -58,7 +101,7 @@ function save(){try{localStorage.setItem(STORAGE,JSON.stringify(state))}catch(e)
 function validMap(s){return Array.isArray(s.mapRows)&&s.mapRows.length===5&&s.mapRows.every((row,i)=>Array.isArray(row)&&row.length===(i===4?1:3)&&row.every(n=>n.floor===i+1&&typeof n.id==='string'&&Array.isArray(n.next)))}
 function load(){try{
  const s=JSON.parse(localStorage.getItem(STORAGE));
- if(s&&s.version===2&&validMap(s)&&Array.isArray(s.deck)&&s.hp>=0&&s.floor>=1&&s.floor<=5&&['map','combat','rewards','win','lose'].includes(s.scene)){state=s;if(state.scene==='combat')normalizeBattle(state.battle);return}
+ if(s&&s.version===2&&validMap(s)&&Array.isArray(s.deck)&&s.hp>=0&&s.floor>=1&&s.floor<=5&&['map','combat','rewards','upgrade','win','lose'].includes(s.scene)){state=s;if(state.scene==='combat')normalizeBattle(state.battle);return}
  // Chuyển bản lưu cũ sang bản đồ mới, giữ HP, vàng, bộ bài và trận đang diễn ra.
  const old=JSON.parse(localStorage.getItem(LEGACY_STORAGE));
  if(old&&old.version===1&&Array.isArray(old.deck)&&old.floor>=1&&old.floor<=5&&old.hp>=0){
@@ -103,7 +146,7 @@ function tickPoison(target){
  target.poison=p-1;
  return before-target.hp;
 }
-function enterRoom(kind){if(state.scene!=='map')return;if(kind==='rest'){state.hp=Math.min(state.maxHp,state.hp+18);state.log='Bạn nghỉ chân và hồi 18 HP.';advance();return}if(kind==='treasure'){state.gold+=25;state.log='Nhặt được 25 vàng.';advance();return}const type=state.floor===5?'boss':kind==='elite'?'guardian':state.floor%2?'slime':'scout';const def=ENEMIES[type];const hp=def.hp+(type==='boss'?0:(state.floor-1)*5);state.battle={enemy:{...clone(def),hp,maxHp:hp,block:0,vulnerable:0,weak:0,poison:0,strength:0},turn:1,energy:3,block:0,strength:0,weak:0,vulnerable:0,draw:shuffle([...state.deck]),discard:[],hand:[],intent:null};state.scene='combat';state.log=`${def.name} xuất hiện.`;startTurn();}
+function enterRoom(kind){if(state.scene!=='map')return;if(kind==='rest'){state.scene='upgrade';state.log='Nghỉ chân: hồi 18 HP hoặc nâng cấp một lá bài.';save();render();return}if(kind==='treasure'){state.gold+=25;state.log='Nhặt được 25 vàng.';advance();return}const type=state.floor===5?'boss':kind==='elite'?'guardian':state.floor%2?'slime':'scout';const def=ENEMIES[type];const hp=def.hp+(type==='boss'?0:(state.floor-1)*5);state.battle={enemy:{...clone(def),hp,maxHp:hp,block:0,vulnerable:0,weak:0,poison:0,strength:0},turn:1,energy:3,block:0,strength:0,weak:0,vulnerable:0,draw:shuffle([...state.deck]),discard:[],hand:[],intent:null};state.scene='combat';state.log=`${def.name} xuất hiện.`;startTurn();}
 function drawCards(amount){const b=state.battle;for(let i=0;i<amount;i++){if(!b.draw.length){if(!b.discard.length)break;b.draw=shuffle(b.discard.splice(0))}b.hand.push(b.draw.pop())}}
 function startTurn(){
  const b=state.battle;normalizeBattle(b);
@@ -115,7 +158,7 @@ function startTurn(){
 }
 function hurtEnemy(amount){const e=state.battle.enemy;const b=state.battle;const modified=Math.max(0,Math.floor(Math.max(0,amount)*(b.weak>0?.75:1)*(e.vulnerable>0?1.5:1)));const blocked=Math.min(e.block,modified);e.block-=blocked;e.hp=Math.max(0,e.hp-(modified-blocked));return modified-blocked}
 function playerDamage(amount){const b=state.battle;amount=Math.max(0,Math.floor(amount*(b.vulnerable>0?1.5:1)));const absorbed=Math.min(b.block,amount);b.block-=absorbed;state.hp=Math.max(0,state.hp-(amount-absorbed));return amount-absorbed}
-function playCard(index){if(state.scene!=='combat')return;const b=state.battle;const id=b.hand[index];if(!id)return;const c=CARDS[id];if(!c||b.energy<c.cost)return;b.energy-=c.cost;b.hand.splice(index,1);b.discard.push(id);const notes=[];if(c.damage)notes.push(`gây ${hurtEnemy(c.damage+b.strength)} sát thương`);if(c.block){b.block+=c.block;notes.push(`+${c.block} giáp`)}if(c.vulnerable){b.enemy.vulnerable+=c.vulnerable;notes.push(`+${c.vulnerable} Dễ Tổn Thương`)}if(c.weak){b.enemy.weak+=c.weak;notes.push(`+${c.weak} Suy Yếu`)}if(c.poison){b.enemy.poison+=c.poison;notes.push(`+${c.poison} Độc`)}if(c.cleanse){b.weak=0;b.vulnerable=0;notes.push('thanh lọc hiệu ứng')}if(c.heal){const before=state.hp;state.hp=Math.min(state.maxHp,state.hp+c.heal);notes.push(`hồi ${state.hp-before} HP`)}if(c.strength){b.strength+=c.strength;notes.push(`+${c.strength} sức mạnh`)}if(c.draw){drawCards(c.draw);notes.push(`rút ${c.draw} lá`)}state.log=`${c.name}: ${notes.join(', ')}.`;if(b.enemy.hp===0){winBattle();return}save();render()}
+function playCard(index){if(state.scene!=='combat')return;const b=state.battle;const id=b.hand[index];if(!id)return;const c=cardInfo(id);if(!c||b.energy<c.cost)return;b.energy-=c.cost;b.hand.splice(index,1);b.discard.push(id);const notes=[];if(c.damage)notes.push(`gây ${hurtEnemy(c.damage+b.strength)} sát thương`);if(c.block){b.block+=c.block;notes.push(`+${c.block} giáp`)}if(c.vulnerable){b.enemy.vulnerable+=c.vulnerable;notes.push(`+${c.vulnerable} Dễ Tổn Thương`)}if(c.weak){b.enemy.weak+=c.weak;notes.push(`+${c.weak} Suy Yếu`)}if(c.poison){b.enemy.poison+=c.poison;notes.push(`+${c.poison} Độc`)}if(c.cleanse){b.weak=0;b.vulnerable=0;notes.push('thanh lọc hiệu ứng')}if(c.heal){const before=state.hp;state.hp=Math.min(state.maxHp,state.hp+c.heal);notes.push(`hồi ${state.hp-before} HP`)}if(c.strength){b.strength+=c.strength;notes.push(`+${c.strength} sức mạnh`)}if(c.draw){drawCards(c.draw);notes.push(`rút ${c.draw} lá`)}state.log=`${c.name}: ${notes.join(', ')}.`;if(b.enemy.hp===0){winBattle();return}save();render()}
 function endTurn(){
  if(state.scene!=='combat')return;
  const b=state.battle,e=b.enemy,action=b.intent||enemyIntent(b);
@@ -140,7 +183,7 @@ function endTurn(){
  if(state.hp===0){state.scene='lose';save();render();return}
  b.turn++;startTurn();
 }
-function winBattle(){const boss=state.floor===5;state.battle=null;if(boss){state.scene='win';state.log='Bạn đã đánh bại kẻ canh tháp!';save();render();return}state.gold+=15;state.scene='rewards';state.offers=shuffle(Object.keys(CARDS).filter(x=>!['strike','defend'].includes(x))).slice(0,3);state.log='Chiến thắng! +15 vàng. Chọn một lá hoặc bỏ qua.';save();render()}
+function winBattle(){const boss=state.floor===5;state.battle=null;if(boss){state.scene='win';state.log='Bạn đã đánh bại kẻ canh tháp!';save();render();return}state.gold+=15;state.scene='rewards';state.offers=rollOffers(3);state.log='Chiến thắng! +15 vàng. Chọn một lá hoặc bỏ qua.';save();render()}
 function pickReward(id){if(state.scene!=='rewards')return;if(id&&state.offers.includes(id))state.deck.push(id);delete state.offers;advance()}
 function advance(){state.floor++;state.scene=state.floor>5?'win':'map';save();render()}
 function pct(a,b){return b>0?Math.max(0,Math.min(100,Math.round((a/b)*100))):0}
@@ -160,7 +203,7 @@ function drawMapLines(graph,svg){
  }
 }
 window.addEventListener('resize',()=>{if(state?.scene==='map'){const graph=document.querySelector('.map-graph');if(graph)drawMapLines(graph,graph.querySelector('svg'))}});
-function render(){if(!state)return;document.body.classList.toggle('ultra',state.graphics==='ultra');$('graphics').textContent=`Đồ họa: ${state.graphics==='ultra'?'THẤP':'THƯỜNG'}`;$('status').textContent=`Tầng ${state.floor}/5   ♥ ${state.hp}/${state.maxHp} HP   ◈ ${state.gold} vàng   ▤ ${state.deck.length} lá`;for(const id of ['map','combat','rewards','result'])$(id).classList.add('hidden');$('log').textContent=state.log||'';
+function render(){if(!state)return;renderDeck();document.body.classList.toggle('ultra',state.graphics==='ultra');$('graphics').textContent=`Đồ họa: ${state.graphics==='ultra'?'THẤP':'THƯỜNG'}`;$('status').textContent=`Tầng ${state.floor}/5   ♥ ${state.hp}/${state.maxHp} HP   ◈ ${state.gold} vàng   ▤ ${state.deck.length} lá`;for(const id of ['map','combat','rewards','upgrade','result'])$(id).classList.add('hidden');$('log').textContent=state.log||'';
 if(state.scene==='map'){
  const box=$('map');box.classList.remove('hidden');box.replaceChildren();
  const h=document.createElement('h2');h.textContent=`Bản đồ hành trình • Tầng ${state.floor}/5`;box.append(h);
@@ -190,7 +233,17 @@ if(state.scene==='map'){
  // Kẻ đường nối bằng SVG tĩnh, không dùng canvas hay vòng lặp animation.
  requestAnimationFrame(()=>drawMapLines(graph,wires));
 }
-if(state.scene==='combat'){const b=state.battle;if(!b){state.scene='map';save();render();return}$('combat').classList.remove('hidden');const e=b.enemy;$('enemy').innerHTML=`<div class="portrait">${e.icon}</div><div class="enemy-title">${e.name}</div>${hpBar(e.hp,e.maxHp)}<div>♥ ${e.hp}/${e.maxHp} <span class="block">▣ ${e.block}</span></div><div class="intent">Ý định: ${b.intent.kind==='buff'?`+${b.intent.strength} Sức Mạnh`:b.intent.kind==='debuff'?`+${b.intent.weak} Suy Yếu`:b.intent.block?`+${b.intent.block} giáp`:`⚔ ${b.intent.damage+(e.strength||0)} sát thương`}</div><small>Địch: Dễ Tổn Thương ${e.vulnerable||0} · Suy Yếu ${e.weak||0} · Độc ${e.poison||0} · Sức Mạnh ${e.strength||0}</small>`;$('hero').innerHTML=`<div class="portrait">♟</div><div class="enemy-title">Lữ khách</div>${hpBar(state.hp,state.maxHp)}<div>♥ ${state.hp}/${state.maxHp} <span class="block">▣ ${b.block}</span></div><div>⚡ Năng lượng: ${b.energy}/3</div><small>Sức mạnh: ${b.strength} · Suy Yếu: ${b.weak||0} · Dễ Tổn Thương: ${b.vulnerable||0} · Lượt ${b.turn}</small>`;$('deckinfo').textContent=`Rút: ${b.draw.length} | Bỏ: ${b.discard.length} | Tay: ${b.hand.length}`;const hand=$('hand');hand.replaceChildren();b.hand.forEach((id,i)=>{const c=CARDS[id];const el=btn('',()=>playCard(i),`card ${c.type}`);el.disabled=b.energy<c.cost;el.innerHTML=`<span class="cost">${c.cost}</span><b>${c.name}</b><span class="desc">${c.text}</span><span class="type">${c.type.toUpperCase()}</span>`;hand.append(el)})}
-if(state.scene==='rewards'){const box=$('rewards');box.classList.remove('hidden');box.replaceChildren();const h=document.createElement('h2');h.textContent='Chiến thắng — chọn phần thưởng';box.append(h);const choices=document.createElement('div');choices.className='choices';(state.offers||[]).forEach(id=>{const c=CARDS[id];choices.append(btn(`${c.name} (${c.cost}⚡) — ${c.text}`,()=>pickReward(id)))});choices.append(btn('Bỏ qua →',()=>pickReward(null)));box.append(choices)}
+if(state.scene==='combat'){const b=state.battle;if(!b){state.scene='map';save();render();return}$('combat').classList.remove('hidden');const e=b.enemy;$('enemy').innerHTML=`<div class="portrait">${e.icon}</div><div class="enemy-title">${e.name}</div>${hpBar(e.hp,e.maxHp)}<div>♥ ${e.hp}/${e.maxHp} <span class="block">▣ ${e.block}</span></div><div class="intent">Ý định: ${b.intent.kind==='buff'?`+${b.intent.strength} Sức Mạnh`:b.intent.kind==='debuff'?`+${b.intent.weak} Suy Yếu`:b.intent.block?`+${b.intent.block} giáp`:`⚔ ${b.intent.damage+(e.strength||0)} sát thương`}</div><small>Địch: Dễ Tổn Thương ${e.vulnerable||0} · Suy Yếu ${e.weak||0} · Độc ${e.poison||0} · Sức Mạnh ${e.strength||0}</small>`;$('hero').innerHTML=`<div class="portrait">♟</div><div class="enemy-title">Lữ khách</div>${hpBar(state.hp,state.maxHp)}<div>♥ ${state.hp}/${state.maxHp} <span class="block">▣ ${b.block}</span></div><div>⚡ Năng lượng: ${b.energy}/3</div><small>Sức mạnh: ${b.strength} · Suy Yếu: ${b.weak||0} · Dễ Tổn Thương: ${b.vulnerable||0} · Lượt ${b.turn}</small>`;$('deckinfo').textContent=`Rút: ${b.draw.length} | Bỏ: ${b.discard.length} | Tay: ${b.hand.length}`;const hand=$('hand');hand.replaceChildren();b.hand.forEach((id,i)=>{const c=cardInfo(id);if(!c)return;const el=btn('',()=>playCard(i),`card ${c.type} rarity-${c.rarity} ${id.endsWith('+')?'upgraded':''}`);el.disabled=b.energy<c.cost;el.innerHTML=`<span class="cost">${c.cost}</span><b>${c.name}</b><span class="desc">${c.text}</span><span class="type">${c.type.toUpperCase()}</span>`;hand.append(el)})}
+if(state.scene==='rewards'){const box=$('rewards');box.classList.remove('hidden');box.replaceChildren();const h=document.createElement('h2');h.textContent='Chiến thắng — chọn phần thưởng';box.append(h);const choices=document.createElement('div');choices.className='choices';(state.offers||[]).forEach(id=>{const c=cardInfo(id);if(!c)return;choices.append(btn(`[${c.rarity}] ${c.name} (${c.cost}⚡) — ${c.text}`,()=>pickReward(id),`rarity-${c.rarity}`))});choices.append(btn('Bỏ qua →',()=>pickReward(null)));box.append(choices)}
+if(state.scene==='upgrade'){
+ const box=$('upgrade');box.classList.remove('hidden');box.replaceChildren();
+ const h=document.createElement('h2');h.textContent='Điểm nghỉ — chọn một hành động';box.append(h);
+ box.append(btn('Nghỉ ngơi · hồi 18 HP',()=>{state.hp=Math.min(state.maxHp,state.hp+18);state.log='Đã hồi 18 HP.';advance()},'primary'));
+ const p=document.createElement('p');p.textContent='Hoặc nâng cấp vĩnh viễn một lá bài (chỉ một lần mỗi lá):';box.append(p);
+ const choices=document.createElement('div');choices.className='choices';
+ let count=0;state.deck.forEach((id,i)=>{const c=cardInfo(id);if(!c||id.endsWith('+'))return;count++;const improved=cardInfo(id+'+');choices.append(btn(`${c.name} → ${improved.name}: ${improved.text}`,()=>chooseUpgrade(i)))});
+ if(!count){const p=document.createElement('p');p.textContent='Tất cả bài đã được nâng cấp.';box.append(p)}
+ box.append(choices);
+}
 if(state.scene==='win'||state.scene==='lose'){const box=$('result');box.classList.remove('hidden');box.replaceChildren();const h=document.createElement('h2');h.textContent=state.scene==='win'?'CHIẾN THẮNG!':'THẤT BẠI';const p=document.createElement('p');p.textContent=`Kết thúc ở tầng ${state.floor}. Bộ bài: ${state.deck.length} lá.`;box.append(h,p,btn('Bắt đầu hành trình mới',newGame,'primary'))}}
-$('endturn').addEventListener('click',endTurn);$('restart').addEventListener('click',()=>{if(confirm('Xóa lượt chơi đang lưu và bắt đầu lại?'))newGame()});$('graphics').addEventListener('click',()=>{state.graphics=state.graphics==='ultra'?'normal':'ultra';save();render()});load();render();
+$('endturn').addEventListener('click',endTurn);$('restart').addEventListener('click',()=>{if(confirm('Xóa lượt chơi đang lưu và bắt đầu lại?'))newGame()});$('graphics').addEventListener('click',()=>{state.graphics=state.graphics==='ultra'?'normal':'ultra';save();render()});$('deckbutton').addEventListener('click',openDeck);load();render();
