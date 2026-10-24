@@ -29,3 +29,12 @@ Nếu upload qua trình duyệt không giữ được thư mục `.github`, có 
 Bản Step 1 hiện có 5 tầng bản đồ, đường nối, combat theo lượt, phần thưởng và lưu qua localStorage. Chưa có relic/shop/event phức tạp. Save nằm trên mỗi trình duyệt, không tự đồng bộ thiết bị.
 
 **Lưu ý:** GitHub Pages public không bảo vệ nội dung riêng tư. Muốn truy cập giới hạn người dùng, dùng hosting có xác thực server-side.
+
+## Ironclad card pool (Step 3)
+
+- Uses verified Ironclad card names and a playable subset of their mechanics: Strike, Defend, Bash, Anger, Armaments, Body Slam, Iron Wave, Pommel Strike, Shrug It Off, Twin Strike, Thunderclap and Inflame.
+- Starting deck: 5 Strike, 4 Defend, 1 Bash; starting maximum HP: 80.
+- Card reward pool includes only Ironclad cards. Legacy prototype cards are supported only for existing saved runs.
+- Campfire: heal 18 or upgrade one card; upgraded cards use the `+` suffix and retain upgrades throughout the run.
+- This is an independent fan prototype with original UI, not a port. Exact full-game content and multi-enemy targeting are not yet implemented.
+- References: https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:Ironclad and https://slaythespire-2.com/cards/character/ironclad
