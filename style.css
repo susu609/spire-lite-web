@@ -14,3 +14,15 @@
 .map-node.visited{border-color:#dcbb76;color:#e8d5a7;opacity:1}
 .map-node:disabled{opacity:.6}
 @media(max-width:420px){.map-node{font-size:11px;min-height:50px}.map-slots{gap:5px}.floor-caption{width:19px}}
+
+/* Step 3: upgrade and rarity accents, no heavy rendering */
+.rarity-starter{border-color:#81909e!important}
+.rarity-common{border-color:#92adc5!important}
+.rarity-uncommon{border-color:#93bde6!important}
+.rarity-rare{border-color:#ddb36b!important}
+.card.upgraded{background:#274537}
+.deck-list{display:grid;gap:6px;max-height:50vh;overflow-y:auto}
+.deck-entry{border:1px solid var(--edge);border-left-width:4px;border-radius:5px;padding:8px;font-size:13px;line-height:1.4}
+#upgrade .choices{max-height:50vh;overflow-y:auto}
+#upgrade .choices button{min-width:min(100%,250px)}
+#deckview{margin:10px 0}
