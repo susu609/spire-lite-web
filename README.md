@@ -38,3 +38,11 @@ Bản Step 1 hiện có 5 tầng bản đồ, đường nối, combat theo lư�
 - Campfire: heal 18 or upgrade one card; upgraded cards use the `+` suffix and retain upgrades throughout the run.
 - This is an independent fan prototype with original UI, not a port. Exact full-game content and multi-enemy targeting are not yet implemented.
 - References: https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:Ironclad and https://slaythespire-2.com/cards/character/ironclad
+
+## Step 4 — Merchant, relics, potions
+
+- Burning Blood starter relic: heal 6 HP after combat; Red Skull shop relic: +3 Strength at <=50% HP at combat entry.
+- Blood Potion restores 20% of maximum HP; Strength Potion grants 2 Strength in combat. Up to 3 potion slots; use potion buttons only during battle.
+- A merchant node may appear on floor 3. Spend Gold on Ironclad cards, relics, potions, or one card removal per shop (75 Gold plus 25 per previous removal).
+- Inventory and shop stock persist in the existing localStorage save. The shop inventory and pricing are simplified for a small five-floor prototype, not fully faithful to STS2.
+- References: https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:Ironclad and https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:The_Merchant
