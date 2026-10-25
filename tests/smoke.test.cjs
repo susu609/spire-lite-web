@@ -3,11 +3,11 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const src=fs.readFileSync('game.js','utf8').replace(/\$\('endturn'\)\.addEventListener[\s\S]*$/,'');
 const elements=new Map();
 const element=id=>{
- if(!elements.has(id))elements.set(id,{textContent:'',innerHTML:'',classList:{add(){},remove(){},toggle(){},contains(){return false}},replaceChildren(){},append(){},addEventListener(){},querySelectorAll(){return[]},querySelector(){return element('svg')},setAttribute(){},getBoundingClientRect(){return {width:300,height:300,left:0,top:0}},isConnected:true});
+ if(!elements.has(id))elements.set(id,{textContent:'',innerHTML:'',classList:{add(){},remove(){},toggle(){},contains(){return false}},replaceChildren(){},append(){},prepend(){},addEventListener(){},querySelectorAll(){return[]},querySelector(){return element('svg')},setAttribute(){},getBoundingClientRect(){return {width:300,height:300,left:0,top:0}},isConnected:true});
  return elements.get(id);
 };
 const store=new Map();
-const ctx={console,Math,JSON,Number,Map,Set,document:{body:{classList:{toggle(){}}},getElementById:element,querySelector:()=>null,createElement:()=>({...element('temporary'),dataset:{},addEventListener(){},append(){},replaceChildren(){},classList:{add(){},remove(){},contains(){return false}},setAttribute(){}}),createElementNS:()=>({...element('svg'),classList:{add(){}}}),createTextNode:(v)=>v},window:{addEventListener(){}},requestAnimationFrame() {},confirm(){return true},localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)}};
+const ctx={console,Math,JSON,Number,Map,Set,document:{body:{classList:{toggle(){}}},getElementById:element,querySelector:()=>null,createElement:()=>({...element('temporary'),dataset:{},addEventListener(){},append(){},prepend(){},replaceChildren(){},classList:{add(){},remove(){},contains(){return false}},setAttribute(){}}),createElementNS:()=>({...element('svg'),classList:{add(){}}}),createTextNode:(v)=>v},window:{addEventListener(){}},requestAnimationFrame() {},confirm(){return true},localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)}};
 vm.createContext(ctx);vm.runInContext(src,ctx);
 const run=x=>vm.runInContext(x,ctx);
 for(let i=0;i<100;i++){
