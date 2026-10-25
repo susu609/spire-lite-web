@@ -46,3 +46,12 @@ Bản Step 1 hiện có 5 tầng bản đồ, đường nối, combat theo lư�
 - A merchant node may appear on floor 3. Spend Gold on Ironclad cards, relics, potions, or one card removal per shop (75 Gold plus 25 per previous removal).
 - Inventory and shop stock persist in the existing localStorage save. The shop inventory and pricing are simplified for a small five-floor prototype, not fully faithful to STS2.
 - References: https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:Ironclad and https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:The_Merchant
+
+## Step 5 — Overgrowth enemies, elites, bosses and event
+- Overgrowth normal enemy name pool: Leaf Slime, Nibbit, Shrinker Beetle, Fuzzy Wurm Crawler.
+- Elite pool: Phrog Parasite, Byrdonis, Bygone Effigy.
+- Boss pool: Ceremonial Beast, The Kin, Vantom. These are the real named creatures in the wiki, but HP, single-target combat and AI intent patterns are simplified original prototype balancing, **not exact STS2 stats or enemy scripting**.
+- Unknown room event Dense Vegetation: Trudge On (+75 Gold/-8 HP) or Rest (+15 HP then a **single** Wriggler fight, an approximation of the game's four-Wriggler encounter).
+- Elite rewards grant extra gold and one not-yet-owned relic if available.
+- Existing v2 saves load; new event rooms appear on newly generated maps only.
+- References: https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:Overgrowth and https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:Dense_Vegetation
