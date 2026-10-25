@@ -55,3 +55,11 @@ Bản Step 1 hiện có 5 tầng bản đồ, đường nối, combat theo lư�
 - Elite rewards grant extra gold and one not-yet-owned relic if available.
 - Existing v2 saves load; new event rooms appear on newly generated maps only.
 - References: https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:Overgrowth and https://slaythespire.wiki.gg/wiki/Slay_the_Spire_2:Dense_Vegetation
+
+## Step 6 — Verification and Android optimizations
+- Automated smoke checks: `node --check game.js && node --test tests/smoke.test.cjs`.
+- 100 procedurally generated maps; smoke flow for starting relic, card purchase, potion use, encounters, rewards and event.
+- Mobile usability: 44px minimum touch controls, horizontal card scrolling, reduced-motion and display-safe-area padding.
+- Restores v2 save data; malformed combat state falls back to map rather than rendering a broken encounter.
+- GitHub Pages: **Settings > Pages > Build and deployment > Source: GitHub Actions** must be enabled by the repo owner. CI tests can PASS even when Pages has not been enabled.
+- Current release is a low-graphics playable prototype: UI still needs hands-on Android/desktop browser testing; content and AI are intentionally simplified.
