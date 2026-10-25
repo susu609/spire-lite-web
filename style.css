@@ -26,3 +26,19 @@
 #upgrade .choices{max-height:50vh;overflow-y:auto}
 #upgrade .choices button{min-width:min(100%,250px)}
 #deckview{margin:10px 0}
+
+/* Step 6: accessible small-screen controls and reduced-motion baseline */
+html{-webkit-text-size-adjust:100%}
+button{-webkit-tap-highlight-color:transparent;user-select:none}
+button:focus-visible{outline:3px solid #f5d78e;outline-offset:2px}
+#hand{overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.inventory{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0;font-size:13px;line-height:1.5}
+.inventory button{min-height:44px}
+#event .choices button,#shop .choices button,#remove .choices button{min-height:54px}
+@media(max-width:550px){
+ .battle{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #app{padding-bottom:max(20px,env(safe-area-inset-bottom))}
+ .card{min-width:140px;width:140px;flex-basis:140px}
+ .bar button{padding:9px 10px}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
