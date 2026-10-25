@@ -134,6 +134,7 @@ function renderInventory(){
 
 const ENEMIES = {
  slime:{name:'Leaf Slime',icon:'◉',hp:30,damage:6},
+ wriggler:{name:'Wriggler',icon:'❋',hp:20,damage:6},
  nibbit:{name:'Nibbit',icon:'♟',hp:34,damage:7},
  beetle:{name:'Shrinker Beetle',icon:'◈',hp:42,damage:8},
  wurm:{name:'Fuzzy Wurm Crawler',icon:'≋',hp:39,damage:7},
@@ -235,7 +236,7 @@ function tickPoison(target){
  target.poison=p-1;
  return before-target.hp;
 }
-function enterRoom(kind){if(state.scene!=='map')return;if(kind==='rest'){state.scene='upgrade';state.log='Nghỉ chân: hồi 18 HP hoặc nâng cấp một lá bài.';save();render();return}if(kind==='treasure'){state.gold+=25;state.log='Nhặt được 25 vàng.';advance();return}if(kind==='event'){state.scene='event';state.eventId='dense_vegetation';state.log='Dense Vegetation: một lối mòn bị cây cỏ che phủ.';save();render();return}if(kind==='shop'){state.shop=shopOffers();state.shopRemovalDone=false;state.scene='shop';save();render();return}const type=kind==='boss'||state.floor===5?['ceremonial','kin','vantom'][Math.floor(Math.random()*3)]:kind==='elite'?['phrog','byrdonis','effigy'][Math.floor(Math.random()*3)]:['slime','nibbit','beetle','wurm'][Math.floor(Math.random()*4)];const def=ENEMIES[type];const hp=def.hp+(type==='boss'?0:(state.floor-1)*5);state.battle={enemy:{...clone(def),hp,maxHp:hp,block:0,vulnerable:0,weak:0,poison:0,strength:0},turn:1,enemyType:type,elite:kind==='elite',energy:3,block:0,strength:0,weak:0,vulnerable:0,draw:shuffle([...state.deck]),discard:[],hand:[],intent:null};state.scene='combat';if(state.relics.includes('red_skull')&&state.hp<=state.maxHp/2)state.battle.strength+=3;state.log=`${def.name} xuất hiện.`;startTurn();}
+function enterRoom(kind){if(state.scene!=='map')return;if(kind==='rest'){state.scene='upgrade';state.log='Nghỉ chân: hồi 18 HP hoặc nâng cấp một lá bài.';save();render();return}if(kind==='treasure'){state.gold+=25;state.log='Nhặt được 25 vàng.';advance();return}if(kind==='event'){state.scene='event';state.eventId='dense_vegetation';state.log='Dense Vegetation: một lối mòn bị cây cỏ che phủ.';save();render();return}if(kind==='shop'){state.shop=shopOffers();state.shopRemovalDone=false;state.scene='shop';save();render();return}const type=kind==='wriggler'?'wriggler':kind==='boss'||state.floor===5?['ceremonial','kin','vantom'][Math.floor(Math.random()*3)]:kind==='elite'?['phrog','byrdonis','effigy'][Math.floor(Math.random()*3)]:['slime','nibbit','beetle','wurm'][Math.floor(Math.random()*4)];const def=ENEMIES[type];const hp=def.hp+(['ceremonial','kin','vantom','wriggler'].includes(type)?0:(state.floor-1)*5);state.battle={enemy:{...clone(def),hp,maxHp:hp,block:0,vulnerable:0,weak:0,poison:0,strength:0},turn:1,enemyType:type,elite:kind==='elite',energy:3,block:0,strength:0,weak:0,vulnerable:0,draw:shuffle([...state.deck]),discard:[],hand:[],intent:null};state.scene='combat';if(state.relics.includes('red_skull')&&state.hp<=state.maxHp/2)state.battle.strength+=3;state.log=`${def.name} xuất hiện.`;startTurn();}
 function drawCards(amount){const b=state.battle;for(let i=0;i<amount;i++){if(!b.draw.length){if(!b.discard.length)break;b.draw=shuffle(b.discard.splice(0))}b.hand.push(b.draw.pop())}}
 function startTurn(){
  const b=state.battle;normalizeBattle(b);
@@ -290,8 +291,7 @@ function advance(){state.floor++;state.scene=state.floor>5?'win':'map';save();re
 function chooseEvent(option){
  if(state.scene!=='event')return;
  if(option==='trudge'){state.hp=Math.max(0,state.hp-8);state.gold+=75;state.log='Bạn nhận 75 Gold và mất 8 HP.'}
- else if(option==='remove'){const idx=state.deck.findIndex(id=>cardBase(id)==='strike');if(idx<0)return;state.deck.splice(idx,1);state.log='Loại bỏ 1 Strike.'}
- else if(option==='rest'){heal(15);state.log='Bạn hồi 15 HP.'}
+ else if(option==='rest'){heal(15);delete state.eventId;state.scene='map';enterRoom('wriggler');return}
  else return;
  delete state.eventId;
  if(state.hp<=0){state.scene='lose';save();render();return}
@@ -381,8 +381,7 @@ if(state.scene==='event'){
  const desc=document.createElement('p');desc.textContent='Bạn lạc trong khu rừng. Hãy chọn cách tìm lối thoát. (Sự kiện được đơn giản hóa cho bản HTML5.)';box.append(desc);
  const choices=document.createElement('div');choices.className='choices';
  choices.append(btn('Tiếp tục: +75 Gold, -8 HP',()=>chooseEvent('trudge')));
- const rm=btn('Dọn lối: loại bỏ 1 Strike',()=>chooseEvent('remove'));rm.disabled=!state.deck.some(id=>cardBase(id)==='strike');choices.append(rm);
- choices.append(btn('Nghỉ chân: hồi 15 HP',()=>chooseEvent('rest')));
+ choices.append(btn('Nghỉ: hồi 15 HP, rồi chiến đấu với Wriggler (bản rút gọn)',()=>chooseEvent('rest')));
  box.append(choices);
 }
 if(state.scene==='win'||state.scene==='lose'){const box=$('result');box.classList.remove('hidden');box.replaceChildren();const h=document.createElement('h2');h.textContent=state.scene==='win'?'CHIẾN THẮNG!':'THẤT BẠI';const p=document.createElement('p');p.textContent=`Kết thúc ở tầng ${state.floor}. Bộ bài: ${state.deck.length} lá.`;box.append(h,p,btn('Bắt đầu hành trình mới',newGame,'primary'))}}
