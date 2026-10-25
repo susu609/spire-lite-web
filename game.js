@@ -186,7 +186,7 @@ function save(){try{localStorage.setItem(STORAGE,JSON.stringify(state))}catch(e)
 function validMap(s){return Array.isArray(s.mapRows)&&s.mapRows.length===5&&s.mapRows.every((row,i)=>Array.isArray(row)&&row.length===(i===4?1:3)&&row.every(n=>n.floor===i+1&&typeof n.id==='string'&&Array.isArray(n.next)))}
 function load(){try{
  const s=JSON.parse(localStorage.getItem(STORAGE));
- if(s&&s.version===2&&validMap(s)&&Array.isArray(s.deck)&&s.hp>=0&&s.floor>=1&&s.floor<=5&&['map','combat','rewards','upgrade','shop','remove','event','win','lose'].includes(s.scene)){state=s;initInventory();if(state.scene==='combat')normalizeBattle(state.battle);if(state.scene==='rewards'){state.offers=(state.offers||[]).filter(id=>RARITY[id]&&RARITY[id]!=='starter');if(!state.offers.length)state.offers=rollOffers(3)}return}
+ if(s&&s.version===2&&validMap(s)&&Array.isArray(s.deck)&&s.hp>=0&&s.floor>=1&&s.floor<=5&&['map','combat','rewards','upgrade','shop','remove','event','win','lose'].includes(s.scene)){state=s;initInventory();if(state.scene==='combat'){if(!state.battle||!state.battle.enemy){state.scene='map';state.battle=null}else normalizeBattle(state.battle)}if(state.scene==='rewards'){state.offers=(state.offers||[]).filter(id=>RARITY[id]&&RARITY[id]!=='starter');if(!state.offers.length)state.offers=rollOffers(3)}return}
  // Chuyển bản lưu cũ sang bản đồ mới, giữ HP, vàng, bộ bài và trận đang diễn ra.
  const old=JSON.parse(localStorage.getItem(LEGACY_STORAGE));
  if(old&&old.version===1&&Array.isArray(old.deck)&&old.floor>=1&&old.floor<=5&&old.hp>=0){
@@ -285,9 +285,9 @@ function endTurn(){
  if(state.hp===0){state.scene='lose';save();render();return}
  b.turn++;startTurn();
 }
-function winBattle(){const boss=state.floor===5,elite=!!state.battle?.elite;state.battle=null;if(state.relics.includes('burning_blood'))heal(6);if(elite){const candidates=Object.keys(RELICS).filter(id=>!state.relics.includes(id));if(candidates.length){const found=candidates[Math.floor(Math.random()*candidates.length)];state.relics.push(found)}}if(boss){state.scene='win';state.log='Bạn đã đánh bại kẻ canh tháp!';save();render();return}state.gold+=elite?40:15;state.scene='rewards';state.offers=rollOffers(3);state.log='Chiến thắng! +15 vàng. Chọn một lá hoặc bỏ qua.';save();render()}
+function winBattle(){const boss=state.floor===5,elite=!!state.battle?.elite;state.battle=null;if(state.relics.includes('burning_blood'))heal(6);if(elite){const candidates=Object.keys(RELICS).filter(id=>!state.relics.includes(id));if(candidates.length){const found=candidates[Math.floor(Math.random()*candidates.length)];state.relics.push(found)}}if(boss){state.scene='win';state.log='Bạn đã đánh bại kẻ canh tháp!';save();render();return}state.gold+=elite?40:15;state.scene='rewards';state.offers=rollOffers(3);state.log=`Chiến thắng! +${elite?40:15} vàng. Chọn một lá hoặc bỏ qua.`;save();render()}
 function pickReward(id){if(state.scene!=='rewards')return;if(id&&state.offers.includes(id))state.deck.push(id);delete state.offers;advance()}
-function advance(){state.floor++;state.scene=state.floor>5?'win':'map';save();render()}
+function advance(){state.floor++;state.scene=state.floor>5?'win':'map';state.log=state.scene==='map'?`Chọn phòng tầng ${state.floor}.`:state.log;save();render()}
 function chooseEvent(option){
  if(state.scene!=='event')return;
  if(option==='trudge'){state.hp=Math.max(0,state.hp-8);state.gold+=75;state.log='Bạn nhận 75 Gold và mất 8 HP.'}
@@ -310,7 +310,7 @@ function drawMapLines(graph,svg){
   const a=from.getBoundingClientRect(),b=to.getBoundingClientRect();
   const line=document.createElementNS('http://www.w3.org/2000/svg','line');
   for(const [key,value] of Object.entries({x1:a.left+a.width/2-rect.left,y1:a.bottom-rect.top,x2:b.left+b.width/2-rect.left,y2:b.top-rect.top}))line.setAttribute(key,value);
-  line.setAttribute('class',state.visited.includes(parent.id)&&parent.next.includes(childId)?'route-line':'');svg.append(line);
+  line.setAttribute('class',state.visited.includes(parent.id)&&state.visited.includes(childId)?'route-line':'');svg.append(line);
  }
 }
 window.addEventListener('resize',()=>{if(state?.scene==='map'){const graph=document.querySelector('.map-graph');if(graph)drawMapLines(graph,graph.querySelector('svg'))}});
