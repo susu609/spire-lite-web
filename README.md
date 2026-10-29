@@ -1,3 +1,18 @@
+# Java foundation (work in progress)
+
+The `java-foundation` branch adds a new **Java 17 + libGDX 1.14.2** project without deleting the existing HTML prototype. Modules: `core/` for rules and rendering, `lwjgl3/` for desktop. Start with [Java setup](docs/JAVA_SETUP.md).
+
+To build with JDK 21 and Gradle 8.14.3 installed:
+
+```sh
+gradle :core:test :lwjgl3:classes
+gradle :lwjgl3:run
+```
+
+The Java demo currently contains a single training fight (Strike/Defend/Bash), not the full HTML game. CI verifies Java build on the branch and on PRs. Standard Gradle Wrapper files must still be generated/committed; see setup documentation. Android integration comes after desktop validation.
+
+---
+
 # Spire Lite — Ultra Low Web
 
 Game thẻ bài roguelike HTML5 độc lập, tối ưu cho điện thoại Android và PC. **Không phải bản port Slay the Spire 2 và không chứa tài nguyên của game gốc.**
