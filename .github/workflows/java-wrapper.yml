@@ -1,0 +1,34 @@
+name: Bootstrap official Gradle Wrapper
+on:
+  push:
+    branches: [java-foundation]
+    paths: ['.github/workflows/java-wrapper.yml']
+permissions:
+  contents: write
+jobs:
+  bootstrap-wrapper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+      - name: Generate standard Gradle Wrapper
+        run: gradle wrapper --gradle-version 8.14.3 --distribution-type bin
+      - name: Verify wrapper build
+        run: |
+          chmod +x gradlew
+          ./gradlew :core:test :lwjgl3:classes --no-daemon
+      - name: Commit official wrapper files to Java branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gradlew gradlew.bat gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties
+          if ! git diff --cached --quiet; then
+            git commit -m "build: add reproducible Gradle 8.14.3 wrapper"
+            git push origin HEAD:java-foundation
+          fi

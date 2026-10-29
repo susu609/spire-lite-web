@@ -1,0 +1,2 @@
+rootProject.name = 'sts-clone-java'
+include 'core', 'lwjgl3'
